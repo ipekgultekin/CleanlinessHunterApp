@@ -1,5 +1,6 @@
 package drycleancompany;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
@@ -7,12 +8,13 @@ import java.util.Date;
  * It serves as a base class for different types of users (such as customers and employees),
  * containing specifics, constructors, getter and setters.
  */
-public abstract class User {
+public abstract class User implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private int ID;
     private Date dateOfBirth;
     private String name;
     private String surname;
-
 
     /**
      * Constructor to create a User with specified date of birth, ID, name, and surname.
@@ -28,7 +30,6 @@ public abstract class User {
         this.name = name;
         this.surname = surname;
     }
-
 
     /**
      * Constructor to create a User with specified ID, name, and surname.
@@ -54,7 +55,6 @@ public abstract class User {
         this.surname = null;
         this.dateOfBirth = new Date();
     }
-
 
     /**
      * Returns the surname of the user.
@@ -91,7 +91,6 @@ public abstract class User {
     public void setName(String name) {
         this.name = name;
     }
-
 
     /**
      * Returns the id of the user.

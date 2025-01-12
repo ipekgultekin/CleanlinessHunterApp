@@ -63,6 +63,23 @@ public class CyprusClean {
         dynamicPanel.setVisible(false); // Initially invisible
         mainPanel.add(dynamicPanel);
 
+        // Load customers and employees
+        loadData();
+
+
+        DataStorage dataStorage = new DataStorage();
+        dataStorage.connect();
+        try {
+            CyprusDryClean.customerList = dataStorage.getCustomers();
+            CyprusDryClean.empList = dataStorage.getEmployees();
+            System.out.println("Data loaded successfully from the database.");
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(frame, "Error loading data: " + e.getMessage(),
+                    "Database Error", JOptionPane.ERROR_MESSAGE);
+        } finally {
+            dataStorage.disconnect();
+        }
+
         // JComboBox action listener that triggers whenever the selected option changes
         // Also when a new item is chosen, retrieve it and pass it to handleSelection() for further processing.
         comboBox.addActionListener(e -> {
@@ -73,13 +90,12 @@ public class CyprusClean {
 
         frame.add(mainPanel, BorderLayout.CENTER);
         frame.setVisible(true);
-        comboBox.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String selectedOption = (String) comboBox.getSelectedItem();
-                handleSelection(selectedOption);
-            }
-        });
+
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            saveData();
+            System.out.println("Application closed safely.");
+        }));
     }
 
     //selection for JComboBox
@@ -143,23 +159,35 @@ public class CyprusClean {
                 createCompareCustomerLoyaltyForm();
             }
             case "Exit" -> {
-                // before the exit program, write the data to file
-                EmployeeIO.writeToFile(CyprusDryClean.empList);
-
-                //I created two new array list for separate subscribed and unsubscribed customers and add them related subscribed type
-                ArrayList<Subscribed> subscribed = new ArrayList<>();
-                ArrayList<UnSubscribed> unsubscribed = new ArrayList<>();
-                for (Customer customer : CyprusDryClean.customerList) {
-                    if (customer instanceof Subscribed) {
-                        subscribed.add((Subscribed) customer);
-                    } else if (customer instanceof UnSubscribed) {
-                        unsubscribed.add((UnSubscribed) customer);
+                DataStorage dataStorage = new DataStorage();
+                dataStorage.connect();
+                try {
+                   //save the data to database
+                    for (Customer customer : CyprusDryClean.customerList) {
+                        dataStorage.updateCustomer(customer);
                     }
+
+                    for (Employee employee : CyprusDryClean.empList) {
+                        dataStorage.updateEmployee(employee);
+                    }
+
+                    System.out.println("Data saved successfully to the database.");
+
+                    // serializable the data
+                    SerializationHandler.serializeCustomers(CyprusDryClean.customerList);
+                    SerializationHandler.serializeEmployees(CyprusDryClean.empList);
+                    System.out.println("Serialized data saved successfully.");
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(frame, "Error saving data: " + e.getMessage(),
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    dataStorage.disconnect();
                 }
-                SubscribedIO.writeToFile(subscribed);
-                UnSubscribedIO.writeToFile(unsubscribed);
-                System.exit(0); // exit the program
+
+
+                System.exit(0);
             }
+
             default -> dynamicPanel.setVisible(false); // for other options, dynamic panel is invisible
         }
 
@@ -168,16 +196,50 @@ public class CyprusClean {
         dynamicPanel.repaint();
     }
 
+    private void loadData() {
+        try {
+            CyprusDryClean.customerList = SerializationHandler.deserializeCustomers();
+            CyprusDryClean.empList = SerializationHandler.deserializeEmployees();
+        } catch (Exception e) {
+            System.err.println("Error loading data: " + e.getMessage());
+            CyprusDryClean.customerList = new ArrayList<>();
+            CyprusDryClean.empList = new ArrayList<>();
+        }
+
+    }
+
+    private void saveData() {
+        DataStorage dataStorage = new DataStorage();
+        dataStorage.connect();
+        try {
+            // Save to database
+            for (Customer customer : CyprusDryClean.customerList) {
+                dataStorage.updateCustomer(customer);
+            }
+            for (Employee employee : CyprusDryClean.empList) {
+                dataStorage.updateEmployee(employee);
+            }
+
+            // Serialize data and generate MD5
+            SerializationHandler.serializeCustomers(CyprusDryClean.customerList);
+            SerializationHandler.serializeEmployees(CyprusDryClean.empList);
+            System.out.println("Data saved successfully.");
+        } catch (Exception e) {
+            System.err.println("Error saving data: " + e.getMessage());
+        } finally {
+            dataStorage.disconnect();
+        }
+    }
+
 
     private void createAddEmployeeForm() {
         JTextField idField = new JTextField();
         JTextField nameField = new JTextField();
         JTextField surnameField = new JTextField();
-        JTextField dobField = new JTextField(); // Date of Birth
-        JTextField startDateField = new JTextField(); // Start Date
+        JTextField dobField = new JTextField();
+        JTextField startDateField = new JTextField();
         JTextField nationalityField = new JTextField();
         JTextField workPermitEndDateField = new JTextField();
-
 
         dynamicPanel.add(new JLabel("Employee ID:"));
         dynamicPanel.add(idField);
@@ -200,22 +262,20 @@ public class CyprusClean {
         dynamicPanel.add(new JLabel("Work Permit End Date (dd-MM-yyyy):"));
         dynamicPanel.add(workPermitEndDateField);
 
-
         JButton addButton = new JButton("Add Employee");
         dynamicPanel.add(new JLabel());
         dynamicPanel.add(addButton);
 
-        // For add button, I created action listener to handle
+
         addButton.addActionListener(e -> {
             try {
-                //these come from user (input)
-                int id = Integer.parseInt(idField.getText());
-                String name = nameField.getText();
-                String surname = surnameField.getText();
-                Date dob = dateConversion(dobField.getText());
-                Date startDate = dateConversion(startDateField.getText());
-                String nationality = nationalityField.getText();
-                Date workPermitEndDate = dateConversion(workPermitEndDateField.getText());
+                int id = Integer.parseInt(idField.getText().trim());
+                String name = nameField.getText().trim();
+                String surname = surnameField.getText().trim();
+                Date dob = CyprusDryClean.dateConversion(dobField.getText().trim());
+                Date startDate = CyprusDryClean.dateConversion(startDateField.getText().trim());
+                String nationality = nationalityField.getText().trim();
+                Date workPermitEndDate = CyprusDryClean.dateConversion(workPermitEndDateField.getText().trim());
 
                 for (Employee employee : CyprusDryClean.empList) {
                     if (id == employee.getID()) {
@@ -224,15 +284,28 @@ public class CyprusClean {
                     }
                 }
 
-                Employee newEmployee = new Employee(dob, id, name, surname, nationality, startDate, workPermitEndDate); //add new employee
-                CyprusDryClean.empList.add(newEmployee);
-                JOptionPane.showMessageDialog(frame, "New employee added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE); // I decided the shows the success message with dialog box
+                Employee newEmployee = new Employee(
+                        dob, id, name, surname, nationality, startDate, workPermitEndDate
+                );
 
+                CyprusDryClean.empList.add(newEmployee);
+
+                // Call DataStorage to save to the database
+                DataStorage dataStorage = new DataStorage();
+                dataStorage.connect();
+                dataStorage.addEmployee(newEmployee);
+                dataStorage.disconnect();
+
+                JOptionPane.showMessageDialog(frame, "New employee added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(frame, "Invalid input! Please check your entries.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
+
+        dynamicPanel.revalidate();
+        dynamicPanel.repaint();
     }
+
 
 
     private void createDeleteEmployeeForm() {
@@ -335,97 +408,71 @@ public class CyprusClean {
         JTextField dobField = new JTextField();
         JTextField depositField = new JTextField();
 
-        // Buttons for customer type (I divide the two button so if the customer wants to subscribe then he/she should write deposit amount and then click the button
         JButton subscribedButton = new JButton("Add Subscribed Customer");
         JButton unsubscribedButton = new JButton("Add Unsubscribed Customer");
 
-
         dynamicPanel.add(new JLabel("Customer ID:"));
         dynamicPanel.add(idField);
-
         dynamicPanel.add(new JLabel("Name:"));
         dynamicPanel.add(nameField);
-
         dynamicPanel.add(new JLabel("Surname:"));
         dynamicPanel.add(surnameField);
-
         dynamicPanel.add(new JLabel("Date of Birth (dd-MM-yyyy):"));
         dynamicPanel.add(dobField);
-
         dynamicPanel.add(new JLabel("Deposit Amount (only for Subscribed):"));
         dynamicPanel.add(depositField);
-
         dynamicPanel.add(subscribedButton);
         dynamicPanel.add(unsubscribedButton);
 
+        DataStorage dataStorage = new DataStorage();
 
         subscribedButton.addActionListener(e -> {
             try {
-                int id = Integer.parseInt(idField.getText());
-                String name = nameField.getText();
-                String surname = surnameField.getText();
-                Date dob = dateConversion(dobField.getText());
-                Date registrationDate = new Date();
-                double deposit = Double.parseDouble(depositField.getText());
+                int id = Integer.parseInt(idField.getText().trim());
+                String name = nameField.getText().trim();
+                String surname = surnameField.getText().trim();
+                Date dob = dateConversion(dobField.getText().trim());
+                java.sql.Date registrationDate = new java.sql.Date(System.currentTimeMillis());
+                java.sql.Date subscriptionDate = new java.sql.Date(System.currentTimeMillis());
+                double depositPaid = Double.parseDouble(depositField.getText().trim());
 
-
-                for (Customer customer : CyprusDryClean.customerList) {
-                    if (id == customer.getID()) {
-                        JOptionPane.showMessageDialog(frame, "Invalid ID! This ID has already been taken!", "Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
+                if (depositPaid < 0) {
+                    throw new IllegalArgumentException("Deposit cannot be negative.");
                 }
 
-                double subscribedDeposit = customerManagement.minDeposit;
-                if (deposit < subscribedDeposit) {
-                    JOptionPane.showMessageDialog(frame, "Deposit cannot be less than " + subscribedDeposit, "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
 
-                Subscribed subscribedCustomer = new Subscribed(deposit, registrationDate);
-                subscribedCustomer.setID(id);
-                subscribedCustomer.setName(name);
-                subscribedCustomer.setSurname(surname);
-                subscribedCustomer.setDateOfBirth(dob);
-                subscribedCustomer.setRegistrationDate(registrationDate);
-                subscribedCustomer.setSubscriptionDate(registrationDate);
-                subscribedCustomer.setDepositPaid(deposit);
+                Subscribed customer = new Subscribed(id, name, surname, new java.sql.Date(dob.getTime()), registrationDate, subscriptionDate, depositPaid);
 
-                CyprusDryClean.customerList.add(subscribedCustomer);
-                JOptionPane.showMessageDialog(frame, "Subscribed customer added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+                dataStorage.connect();
+                dataStorage.addCustomer(customer);
+                CyprusDryClean.customerList = dataStorage.getCustomers();
+                dataStorage.disconnect();
+
+                JOptionPane.showMessageDialog(frame, "Subscribed customer added successfully!");
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(frame, "Invalid input! Please check your entries.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(frame, "Error: " + ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
         unsubscribedButton.addActionListener(e -> {
             try {
-                int id = Integer.parseInt(idField.getText());
-                String name = nameField.getText();
-                String surname = surnameField.getText();
-                Date dob = dateConversion(dobField.getText());
-                Date registrationDate = new Date();
+                int id = Integer.parseInt(idField.getText().trim());
+                String name = nameField.getText().trim();
+                String surname = surnameField.getText().trim();
+                Date dob = dateConversion(dobField.getText().trim());
+                java.sql.Date registrationDate = new java.sql.Date(System.currentTimeMillis());
 
-                // Check for duplicate ID
-                for (Customer customer : CyprusDryClean.customerList) {
-                    if (id == customer.getID()) {
-                        JOptionPane.showMessageDialog(frame, "Invalid ID! This ID has already been taken!", "Error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-                }
+                UnSubscribed customer = new UnSubscribed(id, name, surname, new java.sql.Date(dob.getTime()), registrationDate);
 
-                // Create Unsubscribed customer
-                UnSubscribed unsubscribedCustomer = new UnSubscribed();
-                unsubscribedCustomer.setID(id);
-                unsubscribedCustomer.setName(name);
-                unsubscribedCustomer.setSurname(surname);
-                unsubscribedCustomer.setDateOfBirth(dob);
-                unsubscribedCustomer.setRegistrationDate(registrationDate);
+                dataStorage.connect();
+                dataStorage.addCustomer(customer);
+                CyprusDryClean.customerList = dataStorage.getCustomers();
+                dataStorage.disconnect();
 
-                CyprusDryClean.customerList.add(unsubscribedCustomer);
-                JOptionPane.showMessageDialog(frame, "Unsubscribed customer added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(frame, "Unsubscribed customer added successfully!");
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(frame, "Invalid input! Please check your entries.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(frame, "Error: " + ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -433,48 +480,38 @@ public class CyprusClean {
         dynamicPanel.repaint();
     }
 
+
     private void createDeleteCustomerForm() {
-        JPanel formPanel = new JPanel(new GridLayout(3, 2, 5, 5));
         JTextField idField = new JTextField();
         JButton deleteButton = new JButton("Delete");
         JTextArea resultArea = new JTextArea(5, 30);
         resultArea.setEditable(false);
         resultArea.setBorder(BorderFactory.createLineBorder(Color.GRAY));
 
+        dynamicPanel.add(new JLabel("Customer ID:"));
+        dynamicPanel.add(idField);
+        dynamicPanel.add(new JLabel());
+        dynamicPanel.add(deleteButton);
+        dynamicPanel.add(new JLabel("Result:"));
+        dynamicPanel.add(new JScrollPane(resultArea));
 
-        formPanel.add(new JLabel("Customer ID:"));
-        formPanel.add(idField);
-        formPanel.add(new JLabel());
-        formPanel.add(deleteButton);
-        formPanel.add(new JLabel("Deleted"));
-        formPanel.add(new JScrollPane(resultArea));
+        DataStorage dataStorage = new DataStorage();
+        dataStorage.connect();
 
-
-        dynamicPanel.removeAll();
-        dynamicPanel.add(formPanel);
-
-        // for delete button I create action listener
         deleteButton.addActionListener(e -> {
             try {
                 int id = Integer.parseInt(idField.getText());
-                Customer customer = CyprusDryClean.findCustomerID(id);
-
-                if (customer != null) {
-                    CyprusDryClean.customerList.remove(customer);
-                    resultArea.setText("Customer with ID " + id + " deleted successfully!");
-                } else {
-                    resultArea.setText("Customer not found.");
-                }
-            } catch (NumberFormatException ex) {
-                resultArea.setText("Invalid ID! Please enter a numeric value.");
+                dataStorage.deleteCustomer(id);
+                resultArea.setText("Customer with ID " + id + " deleted successfully!");
             } catch (Exception ex) {
-                resultArea.setText("An error occurred. Please try again.");
+                resultArea.setText("Error: " + ex.getMessage());
             }
         });
 
         dynamicPanel.revalidate();
         dynamicPanel.repaint();
     }
+
 
 
     private void createCustomerDetailsForm() {
@@ -779,7 +816,6 @@ public class CyprusClean {
 
         StringBuilder customerList = new StringBuilder();
 
-
         for (Customer customer : CyprusDryClean.customerList) {
             customerList.append("ID: ").append(customer.getID())
                     .append(", Name: ").append(customer.getName())
@@ -790,7 +826,6 @@ public class CyprusClean {
                     .append("\n");
         }
 
-
         if (customerList.length() == 0) {
             customerListArea.setText("No customers found.");
         } else {
@@ -799,10 +834,10 @@ public class CyprusClean {
 
         dynamicPanel.add(new JLabel("Customer List:"));
         dynamicPanel.add(new JScrollPane(customerListArea));
-
         dynamicPanel.revalidate();
         dynamicPanel.repaint();
     }
+
 
 
     private void createAddHealthInspectionForm() {
@@ -891,23 +926,29 @@ public class CyprusClean {
     }
 
 
-
     public static void main(String[] args) {
-        //read the data from file
-        CyprusDryClean.empList = EmployeeIO.readFromFile();
-        CyprusDryClean.customerList = new ArrayList<>();
-        CyprusDryClean.customerList.addAll(SubscribedIO.readFromFile());
-        CyprusDryClean.customerList.addAll(UnSubscribedIO.readFromFile());
+        try {
+            CyprusDryClean.customerList = SerializationHandler.deserializeCustomers();
+            System.out.println("Deserialized customers loaded.");
+        } catch (Exception e) {
+            System.err.println("Error during customer deserialization: " + e.getMessage());
+            CyprusDryClean.customerList = new ArrayList<>();
+            SerializationHandler.serializeCustomers(CyprusDryClean.customerList);
+        }
 
-        //start the gui
+        try {
+            CyprusDryClean.empList = SerializationHandler.deserializeEmployees();
+            System.out.println("Deserialized employees loaded.");
+        } catch (Exception e) {
+            System.err.println("Error during employee deserialization: " + e.getMessage());
+            CyprusDryClean.empList = new ArrayList<>();
+            SerializationHandler.serializeEmployees(CyprusDryClean.empList);
+        }
+
         CyprusClean gui = new CyprusClean();
         JFrame frame = gui.frame;
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
-
-
-
-
 
 }

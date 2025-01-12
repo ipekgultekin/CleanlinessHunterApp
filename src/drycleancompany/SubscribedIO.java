@@ -2,18 +2,22 @@ package drycleancompany;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Date;
+import java.sql.Date;
+
 /**
- * This class provide the read from and write to a binary file subscribed customer data.
+ * This class provides methods to read from and write to a binary file for subscribed customer data.
  */
 public class SubscribedIO {
+
+    private static final String FILE_NAME = "Subscribed.dat";
+
     /**
-     * This method writes a list of subscribed customers to the binary file "Subscribed.dat"
+     * This method writes a list of subscribed customers to the binary file "Subscribed.dat".
      *
-     * @param subscribedCustomers   list of Subscribed customers to be written to the file
+     * @param subscribedCustomers List of Subscribed customers to be written to the file.
      */
     public static void writeToFile(ArrayList<Subscribed> subscribedCustomers) {
-        try (DataOutputStream dataOutputStream = new DataOutputStream(new FileOutputStream("Subscribed.dat"))) {
+        try (DataOutputStream dataOutputStream = new DataOutputStream(new FileOutputStream(FILE_NAME))) {
             dataOutputStream.writeInt(subscribedCustomers.size());
 
             for (Subscribed customer : subscribedCustomers) {
@@ -30,15 +34,17 @@ public class SubscribedIO {
             System.err.println("Error while writing subscribed customers to file: " + e.getMessage());
         }
     }
+
     /**
-     * This method read a list of subscribed customers from the binary file "Subscribed.dat"
+     * This method reads a list of subscribed customers from the binary file "Subscribed.dat".
      *
      * @return An ArrayList of Subscribed customers read from the file.
      */
     public static ArrayList<Subscribed> readFromFile() {
         ArrayList<Subscribed> subscribedCustomers = new ArrayList<>();
-        try (DataInputStream dataInputStream = new DataInputStream(new FileInputStream("Subscribed.dat"))) {
-            int numCustomers = dataInputStream.readInt();
+
+        try (DataInputStream dataInputStream = new DataInputStream(new FileInputStream(FILE_NAME))) {
+            int numCustomers = dataInputStream.readInt(); // Read number of customers
 
             for (int i = 0; i < numCustomers; i++) {
                 int id = dataInputStream.readInt();
@@ -52,17 +58,15 @@ public class SubscribedIO {
                 Date subscriptionDate = new Date(subscriptionDateLong);
                 double depositPaid = dataInputStream.readDouble();
 
-                Subscribed customer = new Subscribed(depositPaid, registrationDate);
-                customer.setID(id);
-                customer.setName(name);
-                customer.setSurname(surname);
-                customer.setDateOfBirth(dateOfBirth);
+
+                Subscribed customer = new Subscribed(id, name, surname, dateOfBirth, registrationDate, depositPaid);
                 customer.setSubscriptionDate(subscriptionDate);
+
                 subscribedCustomers.add(customer);
             }
             System.out.println("Subscribed customers read from file successfully.");
         } catch (FileNotFoundException e) {
-            System.out.println("Subscribed.dat file not found, returning an empty list.");
+            System.out.println(FILE_NAME + " file not found, returning an empty list.");
         } catch (IOException e) {
             System.err.println("Error while reading subscribed customers from file: " + e.getMessage());
         }

@@ -285,16 +285,15 @@ public class CyprusDryClean {
      * This method adds a new Customer to the customerList
      * also it controls the ID to be unique.
      */
-    public void addCustomer(){
+    public void addCustomer() {
         Scanner input = new Scanner(System.in);
 
         System.out.print("Enter customer id: ");
         int id = input.nextInt();
         input.nextLine();
         for (Customer customer : customerList) {
-            if (id == customer.getID())
-            {
-                System.out.println("Invalid ID! This ID has already taken!");
+            if (id == customer.getID()) {
+                System.out.println("Invalid ID! This ID has already been taken!");
                 return;
             }
         }
@@ -305,17 +304,17 @@ public class CyprusDryClean {
         System.out.print("Enter customer surname: ");
         String customerSurname = input.nextLine();
 
-        System.out.print("Enter customer's date of birth (dd-MM-yyyy) : ");
+        System.out.print("Enter customer's date of birth (dd-MM-yyyy): ");
         String dateBirth = input.nextLine();
         Date dateOfBirth = dateConversion(dateBirth);
 
 
-        Date registrationDate = new Date();
+        java.sql.Date registrationDate = new java.sql.Date(System.currentTimeMillis());
 
         System.out.print("Would you like to become subscribed? (yes/no): ");
         String subscribed = input.nextLine();
 
-        if(subscribed.equalsIgnoreCase("yes")){
+        if (subscribed.equalsIgnoreCase("yes")) {
             double subscribedDeposit = customerManagement.minDeposit;
             double newCustomerDeposit;
 
@@ -323,36 +322,33 @@ public class CyprusDryClean {
             newCustomerDeposit = input.nextDouble();
             input.nextLine();
 
-            if(newCustomerDeposit >= subscribedDeposit){
-                System.out.println("Thanks for deposit.");
-            }
-            else {
-                System.out.println("Deposit can not be less than " + customerManagement.minDeposit + " .");
+            if (newCustomerDeposit < subscribedDeposit) {
+                System.out.println("Deposit cannot be less than " + customerManagement.minDeposit + ".");
                 return;
             }
 
 
+            java.sql.Date subscriptionDate = registrationDate;
 
-            Subscribed subscribedCustomer = new Subscribed(subscribedDeposit, registrationDate);
+
+            Subscribed subscribedCustomer = new Subscribed();
             subscribedCustomer.setID(id);
             subscribedCustomer.setName(customerName);
             subscribedCustomer.setSurname(customerSurname);
-            subscribedCustomer.setDateOfBirth(dateOfBirth);
+            subscribedCustomer.setDateOfBirth(new java.sql.Date(dateOfBirth.getTime()));
             subscribedCustomer.setRegistrationDate(registrationDate);
-            subscribedCustomer.setSubscriptionDate(registrationDate);
+            subscribedCustomer.setSubscriptionDate(subscriptionDate);
             subscribedCustomer.setDepositPaid(newCustomerDeposit);
-
 
             customerList.add(subscribedCustomer);
             System.out.println("Subscribed customer added.");
-        }
+        } else {
 
-        else{
             UnSubscribed unsubscribedCustomer = new UnSubscribed();
             unsubscribedCustomer.setID(id);
             unsubscribedCustomer.setName(customerName);
             unsubscribedCustomer.setSurname(customerSurname);
-            unsubscribedCustomer.setDateOfBirth(dateOfBirth);
+            unsubscribedCustomer.setDateOfBirth(new java.sql.Date(dateOfBirth.getTime()));
             unsubscribedCustomer.setRegistrationDate(registrationDate);
 
             customerList.add(unsubscribedCustomer);

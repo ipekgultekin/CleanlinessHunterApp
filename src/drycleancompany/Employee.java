@@ -1,5 +1,6 @@
 package drycleancompany;
 
+import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -7,12 +8,13 @@ import java.util.HashMap;
  * This class extends the User class and includes additional properties such as nationality,
  * start date, work permit end date, and health inspection records, constructors, getters, setters.
  */
-public class Employee extends User{
+public class Employee extends User implements Serializable {
+    private static final long serialVersionUID = 1L; // constant serializable id
+
     private Date startDate;
     private String nationality;
-    private HashMap<Date,String> healthInspection;
+    private transient HashMap<Date, String> healthInspection; // I don't want to do serialize so I added transient
     private Date workPermitEndDate;
-
 
     /**
      * Constructor for creating an Employee object, and it calls User's related constructor with super keyword.
@@ -59,7 +61,7 @@ public class Employee extends User{
     }
 
     /**
-     * Constructor for creating an Employee object,  and it calls User's related constructor with super keyword.
+     * Constructor for creating an Employee object, and it calls User's related constructor with super keyword.
      * including health inspection records.
      *
      * @param ID  ID of the employee
@@ -78,7 +80,6 @@ public class Employee extends User{
         this.workPermitEndDate = workPermitEndDate;
     }
 
-
     /**
      * Gets the health inspection records of the employee.
      *
@@ -95,6 +96,10 @@ public class Employee extends User{
      */
     public void setHealthInspection(HashMap<Date, String> healthInspection) {
         this.healthInspection = healthInspection;
+    }
+
+    public int getEmployeeID() {
+        return this.getID();
     }
 
     /**
@@ -118,10 +123,10 @@ public class Employee extends User{
     /**
      * Gets the start date of the employee.
      *
-     * @return  start date of the employee.
+     * @return start date of the employee.
      */
-    public Date getStartDate() {
-        return startDate;
+    public java.sql.Date getStartDate() {
+        return new java.sql.Date(startDate.getTime());
     }
 
     /**
@@ -130,16 +135,16 @@ public class Employee extends User{
      * @param startDate  start date to be set for the employee.
      */
     public void setStartDate(Date startDate) {
-        this.startDate = startDate;
+        this.startDate = new java.util.Date(startDate.getTime());
     }
 
     /**
      * Gets the work permit end date for the employee.
      *
-     * @return  work permit end date of the employee.
+     * @return work permit end date of the employee.
      */
-    public Date getWorkPermitEndDate() {
-        return workPermitEndDate;
+    public java.sql.Date getWorkPermitEndDate() {
+        return new java.sql.Date(workPermitEndDate.getTime());
     }
 
     /**
@@ -148,7 +153,7 @@ public class Employee extends User{
      * @param workPermitEndDate  work permit end date to be set for the employee.
      */
     public void setWorkPermitEndDate(Date workPermitEndDate) {
-        this.workPermitEndDate = workPermitEndDate;
+        this.workPermitEndDate = new java.util.Date(workPermitEndDate.getTime());
     }
 
     /**
@@ -165,4 +170,5 @@ public class Employee extends User{
                 ", workPermitEndDate=" + workPermitEndDate +
                 '}';
     }
+
 }
